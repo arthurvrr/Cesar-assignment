@@ -1,0 +1,149 @@
+ACTIVE_ROBOTS != 0 
+{
+	1) Incrementa as posições dos robôs em dado intervalo de tempo
+	2) Verifica as interrupções de teclado. As quais são:
+		i) Para ativar um robô é preciso pressionar 'n' ou 'N', o programa verifica se existe um robô
+		disponível para ser ativado. Se existir a seguinte tela deve ser apresentada:
+		NOME DO ROBO X: NAMENAMENAME, e confirmação com a tecla "ENTER", e muda o fluxo para a tela de dados 
+		do robô.
+		Se não houver robôs disponíveis é a mensagem "NÃO HÁ ROBOS LIVRES", que permanecerá por 2 segundos
+		e depois retorna para o visor anterior.
+		
+		ii)
+
+}
+
+
+
+ROBO1: EQU 20000 ;;2000 ATÉ 20017
+ROBO2: EQU 20018 ;;20018 ATÉ 20035
+ROBO3: EQU 20036 ;;20036 ATÉ 20053
+ROBO4: EQU 20054 ;;20054 ATÉ 20071
+STACKPT: EQU 65408
+IVET:	EQU 65470
+TIMD:	EQU 65495
+INTS: 	EQU 65496
+INTE: 	EQU 65497
+TECST: 	EQU 65498
+TECDT: 	EQU 65499 
+VISOR:	EQU 65500
+
+	CLR, INTS
+	CLR, TECST
+	CLR, TECDT
+	MOV, #ISR_KEY, IVET
+	MOV, #130, INTE 		;;Ativa as interrupções de teclado e visor
+	MOV, #STACKPT, R6	;;Inicia a pilha
+
+inicio: TST, ACTIVED_ROBOTS ;;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
+	BNE, main
+	JSR, R7,JSR_MSG01
+	JMP, inicio
+	
+
+main: 	HLT
+
+
+
+
+
+
+ORG 6000 
+;==================================================
+;	      MENSAGEM: ROBOS PARDOS
+;==================================================
+
+JSR_MSG01:
+	MOV, #13, R0 ;;TAMANHO DA FRASE
+	MOV, #MESSAGE01, R1
+	MOV, #VISOR, R2
+	JMP, loop1
+	RTS, R7
+
+loop1:	
+	MOV, (R1)+, (R2)
+	JSR,R7,JSR_AUX01
+	BNE, loop1
+	RTS, R7
+
+;==================================================
+;	JSR_MENSAGEM: NOME DO ROBO :
+;==================================================
+
+JRS_MSG02:
+	JSR,R7,JSR_CVISOR
+	MOV, #14, R0 		;;TAMANHO DA FRASE
+	MOV, #MESSAGE02, R1	;;Primeiro endereço do vetor mensagem em R1
+	MOV, #VISOR, R2		;;Primeiro endereço do vetor VISOR em R2
+	JMP, loop
+
+loop:
+	CMP,R0,#2	;;Verifica se é a posição do número do robo
+	BNE, go_on		;;Se Z = 0, não é a posição do número, continua o programa
+	JSR,R7,JSR_13		;;Se Z=1, executa a subrotina para colocar o número do robo no visor
+go_on:	MOV, (R1)+, (R2)
+	JSR,R7,JSR_AUX01
+	BNE, loop
+	RTS, R7
+	
+;==================================================
+;	ISR: REAÇÃO AO TECLADO
+;==================================================
+
+ISR_KEY:
+	CMP,TECDT, #78
+	BEQ,JSR_N
+	CMP,TECDT, #110
+	BEQ,JSR_N
+	
+	RTI
+
+JSR_N:
+	INC,ACTIVED_ROBOTS	;;Incrementa o contador 
+	ADD, #1, CURRENT_ROBOT	;;Seta o robo atual para
+	JSR, R7, JRS_MSG02
+	HLT			;;Implementar a condinuação do programa
+;==================================================
+;   JSR_AUX: NÚMERO DO ROBO NO VISOR NA JSR_MSG02
+;==================================================
+	
+JSR_13:
+	ADD,#48, CURRENT_ROBOT
+	MOV,CURRENT_ROBOT, (R1)	
+	SUB,#48,CURRENT_ROBOT
+	RTS, R7
+
+;==================================================
+;		LIMPA O VISOR
+;==================================================
+
+JSR_CVISOR:
+	MOV, #31, R0 ;;TAMANHO DA FRASE
+	MOV, #32, R1
+	MOV, #VISOR, R2
+	JMP, loopCvisor
+	RTS, R7
+
+loopCvisor:	
+	MOV, R1, (R2)
+	JSR,R7,JSR_AUX01
+	BNE, loopCvisor
+	RTS, R7
+
+;==================================================
+;	JSR_AUX01
+;==================================================
+JSR_AUX01:
+	INC, R2
+	DEC,R0
+	TST, R0
+	RTS, R7
+
+
+ORG 30000
+ACTIVED_ROBOTS: dw 0
+CURRENT_ROBOT: dw 0
+MESSAGE01: daw 'ROBOS PARADOS'
+MESSAGE02: daw 'NOME DO ROBO :'
+MESSAGE03: daw 'NAO HA ROBOS LIVRES'
+
