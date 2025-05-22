@@ -1,8 +1,3 @@
-
-ROBO1: EQU 20000 ;;2000 ATÉ 20017
-ROBO2: EQU 20018 ;;20018 ATÉ 20035
-ROBO3: EQU 20036 ;;20036 ATÉ 20053
-ROBO4: EQU 20054 ;;20054 ATÉ 20071
 STACKPT: EQU 65408
 IVET:	EQU 65470
 TIMD:	EQU 65495
@@ -38,38 +33,22 @@ ORG 6000
 ;==================================================
 
 JSR_MSG01:
-	MOV, #13, R0 ;;TAMANHO DA FRASE
-	MOV, #MESSAGE01, R1
-	MOV, #VISOR, R2
-	JMP, loop1
-	RTS, R7
-
-loop1:	
-	MOV, (R1)+, (R2)
-	JSR,R7,JSR_AUX01
-	BNE, loop1
-	RTS, R7
-
-;==================================================
-;	JSR_MENSAGEM: NOME DO ROBO :
-;==================================================
-
-JRS_MSG02:
-	JSR,R7,JSR_CVISOR
-	MOV, #14, R0 		;;TAMANHO DA FRASE
-	MOV, #MESSAGE02, R1	;;Primeiro endereço do vetor mensagem em R1
-	MOV, #VISOR, R2		;;Primeiro endereço do vetor VISOR em R2
+	MOV, #MESSAGE01, R1	;R1 contém o primeiro endereço da string MESSAGE01
+	MOV, #VISOR, R2		;R2 contém o primeiro endereço do VISOR
+loop:	CMP,(R1), #47		;Verifica se está na última posição da string "\'
+	BEQ,out			;Se z = 1, a última possição da string foi alcançada
+	MOV,(R1)+, (R2)
+	INC,R2
 	JMP, loop
+out:	RTS, R7
 
-loop:
-	CMP,R0,#2	;;Verifica se é a posição do número do robo
-	BNE, go_on		;;Se Z = 0, não é a posição do número, continua o programa
-	JSR,R7,JSR_13		;;Se Z=1, executa a subrotina para colocar o número do robo no visor
-go_on:	MOV, (R1)+, (R2)
-	JSR,R7,JSR_AUX01
-	BNE, loop
-	RTS, R7
+
 	
+;==================================================
+;	JSR_ROBOT:
+;==================================================
+
+
 ;==================================================
 ;	ISR: REAÇÃO AO TECLADO
 ;==================================================
@@ -85,7 +64,8 @@ ISR_KEY:
 JSR_N:
 	INC,ACTIVED_ROBOTS	;;Incrementa o contador 
 	ADD, #1, CURRENT_ROBOT	;;Seta o robo atual para
-	JSR, R7, JRS_MSG02
+	JSR, R7, JSR_CVISOR
+
 	HLT			;;Implementar a condinuação do programa
 ;==================================================
 ;   JSR_AUX: NÚMERO DO ROBO NO VISOR NA JSR_MSG02
@@ -103,31 +83,44 @@ JSR_13:
 
 JSR_CVISOR:
 	MOV, #31, R0 ;;TAMANHO DA FRASE
-	MOV, #32, R1
 	MOV, #VISOR, R2
-	JMP, loopCvisor
-	RTS, R7
-
-loopCvisor:	
-	MOV, R1, (R2)
-	JSR,R7,JSR_AUX01
-	BNE, loopCvisor
-	RTS, R7
-
-;==================================================
-;	JSR_AUX01
-;==================================================
-JSR_AUX01:
-	INC, R2
-	DEC,R0
+loopVisor:
 	TST, R0
-	RTS, R7
+	BEQ, out
+	CLR,(R2)
+	DEC, R0
+	INC, R2
+	JMP, loopVisor
+	
+
+
+
+
 
 
 ORG 30000
 ACTIVED_ROBOTS: dw 0
 CURRENT_ROBOT: dw 0
-MESSAGE01: daw 'ROBOS PARADOS'
-MESSAGE02: daw 'NOME DO ROBO :'
-MESSAGE03: daw 'NAO HA ROBOS LIVRES'
+MESSAGE01: daw 'ROBOS PARADOS/'
+MESSAGE03: daw 'NAO HA ROBOS LIVRES/'
+
+;==================================================
+;Vetor de 4 posições, responsável por armazenar as 
+;posições X e Y de cada robô. (Para acessar o 
+;endereço usa #BOTS_POSI... acessar o conteúdo usa BOTS_POS...)
+
+BOTS_POSITIONS_X: daw [4]	
+BOTS_POSITIONS_Y: daw [4]
+;==================================================
+
+
+;==================================================
+;Vetor de 4 posições, responsável por armazenar as 
+;velocidades nos eixos X e Y de cada robô. (Para acessar o 
+;endereço usa #BOTS_POSI... acessar o conteúdo usa BOTS_POS...)
+
+BOTS_VEL_X: daw [4]
+BOTS_VEL_Y: daw [4]
+;==================================================
+
 
