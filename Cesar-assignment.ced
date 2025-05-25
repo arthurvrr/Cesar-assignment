@@ -11,7 +11,7 @@ VISOR:	EQU 65500
 	CLR, TECST
 	CLR, TECDT
 	MOV, #ISR, IVET
-	MOV, #130, INTE 	;Ativa as interrupções de teclado apenas [1]0000[1]0
+	MOV, #130, INTE 	;Ativa as interrup??es de teclado apenas [1]0000[1]0
 	MOV, #STACKPT, R6	;;Inicia a pilha
 
 inicio: TST, ACTIVED_ROBOTS ;;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
@@ -21,8 +21,9 @@ inicio: TST, ACTIVED_ROBOTS ;;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
 	
 
 main:
-	JSR, R7, JSR_CVISOR
-	JSR, R7, JSR_MSG02
+	;MOV, #131, INTE		;Habilita as interrupções de timer
+	JSR, R7, JSR_CVISOR	;Limpa o visor
+	JSR, R7, JSR_MSG02	;
 	JMP, wait_command
 	
 	
@@ -45,38 +46,39 @@ wc_loop:
 ;	      MENSAGEM: ROBOS PARADOS
 ;==================================================
 JSR_MSG01:
-	CLR, INTE		;Desabilita as interruções de hardware
-	MOV, #MESSAGE01, R1	;R1 contém o primeiro endereço da string MESSAGE01
-	MOV, #VISOR, R2		;R2 contém o primeiro endereço do VISOR
-loop:	CMP,(R1), #47		;Verifica se está na última posição da string "\'
-	BEQ,out			;Se z = 1, a última possição da string foi alcançada
+	CLR, INTE		;Desabilita as interru??es de hardware
+	MOV, #MESSAGE01, R1	;R1 cont?m o primeiro endere?o da string MESSAGE01
+	MOV, #VISOR, R2		;R2 cont?m o primeiro endere?o do VISOR
+loop:	CMP,(R1), #47		;Verifica se est? na ?ltima posi??o da string "\'
+	BEQ,out			;Se z = 1, a ?ltima possi??o da string foi alcan?ada
 	MOV,(R1)+, (R2)
 	INC,R2
 	JMP, loop
 
 out:	
-	MOV, #130, INTE	
+	MOV, #130, INTE		;Habilita as interrupções de teclado novamente
 	RTS, R7
 
 ;==================================================
 ;	      MENSAGEM: ROBO X:
 ;==================================================
 JSR_MSG02:
-	MOV, #MESSAGE02, R1	;R1 contém o primeiro endereço da string MESSAGE02
-	MOV, #VISOR, R2		;R2 contém o primeiro endereço do VISOR
-loop1:	CMP,(R1), #47		;Verifica se está na última posição da string "\"
-	BEQ,out_msg02		;Se z = 1, a última possição da string foi alcançada
-	CMP,(R1), #42		;Verifica se é o caractere "*"
+	MOV, #MESSAGE02, R1	;R1 cont?m o primeiro endere?o da string MESSAGE02
+	MOV, #VISOR, R2		;R2 cont?m o primeiro endere?o do VISOR
+loop_msg02:
+	CMP,(R1), #47		;Verifica se est? na ?ltima posi??o da string "\"
+	BEQ,out_msg02		;Se z = 1, a ?ltima possi??o da string foi alcan?ada
+	CMP,(R1), #42		;Verifica se ? o caractere "*"
 	BNE, go
 	
 	MOV,CURRENT_ROBOT, R0	
-	ADD,#48, R0		;Transforma o número de current_robot em codificação ASCII
-	MOV,R0, (R2)		;Coloca o current_robot na posição demarcada pelo caractere "*"
+	ADD,#48, R0		;Transforma o n?mero de current_robot em codifica??o ASCII
+	MOV,R0, (R2)		;Coloca o current_robot na posi??o demarcada pelo caractere "*"
 	INC,R2
 	ADD, #2, R1		;Incrementa o ponteiro da string MESSAGE02
 go:	MOV,(R1)+, (R2)		
 	INC,R2
-	JMP, loop1
+	JMP, loop_msg02
 out_msg02:
 	RTS, R7
 
@@ -88,49 +90,118 @@ JSR_ROBOT:
 	
 
 ;==================================================
-;	ISR: REAÇÃO AO TECLADO & TIMER
+;	ISR: REA??O AO TECLADO & TIMER
 ;==================================================
 ISR:
-	clr,INTE		;Desabilita as interrupções de hardware
+	clr,INTE		;Desabilita as interrup??es de hardware
 	clr, TECST		;Limpa a flag do teclado
 	JSR, R7, jsr_rx_out	;Salva o conteudo dos registradores na memoria
 
 	MOV,INTS, R0
-	AND,MASK_TCL, R0	;Verifica se a interrupção foi gerada pelo teclado
+	AND,MASK_TCL, R0	;Verifica se a interrup??o foi gerada pelo teclado
 	CMP,R0,#2		
-	BEQ,J_TCL		;Pula para o tratamento de interrupção do teclado
+	BEQ,J_TCL		;Pula para o tratamento de interrup??o do teclado
 	
-	JSR, R7, JSR_TIMER	;Pula para o tratamento da interrupção de timer
+	JSR, R7, JSR_TIMER	;Pula para o tratamento da interrup??o de timer
 	
-return:	
+return_isr:
+	CLR,TECDT	
 	JSR,R7, jsr_rx_in	;Retorna para os registradores o seu conteudo
 	MOV, MASK_CL, INTS	;Seta INTS pra [1]000000
-	MOV, #130, INTE 	;Ativa as interrupções de teclado e timer
+	MOV, #130, INTE 	;Ativa as interrup??es de teclado e timer
 	RTI	
 
 
 
 ;==================================================
-;	J_TCL: Interrupção pelo teclado
+;	J_TCL: Interrup??o pelo teclado
 ;==================================================
 
 J_TCL:
-	CMP,TECDT, #78		
+	CMP,TECDT, #78		;Verifica se "N" ou "n" foi apertado			
 	BEQ, subrout_n
 	CMP,TECDT, #110
 	BEQ, subrout_n
+	
+	CMP,TECDT, #87		;Verifica se "W" ou "w" foi apertado			
+	BEQ, subrout_w
+	CMP,TECDT, #119
+	BEQ, subrout_w
 
-subrout_n:
+	CMP,TECDT, #83		;Verifica se "S" ou "s" foi apertado			
+	BEQ, subrout_s
+	CMP,TECDT, #115
+	BEQ, subrout_s
+
+	CMP,TECDT, #65		;Verifica se "A" ou "a" foi apertado			
+	BEQ, subrout_a
+	CMP,TECDT, #97
+	BEQ, subrout_a
+
+	CMP,TECDT, #68		;Verifica se "D" ou "d" foi apertado			
+	BEQ, subrout_d
+	CMP,TECDT, #100
+	BEQ, subrout_d
+
+	JMP, return_isr		;Caso a tecla apertada for inválida, retorna ao programa principal
+
+subrout_n:			;Tratra da tecla "N" ou "n"
 	JSR,R7, jsr_n
-	JMP, return
+	JMP, return_isr
+
+subrout_w:			;Tratra da tecla "W" ou "w"
+	MOV, #BOTS_VEL_Y, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
+	JSR,R7, jsr_inc_vel	;Pula para suborotina que altera a posição o conteudo do vetor passado para R0
+	JMP, return_isr
+
+subrout_s:			;Tratra da tecla "S" ou "s"
+	MOV, #BOTS_VEL_Y, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
+	JSR,R7, jsr_dec_vel	;Pula para suborotina que altera a posição o conteudo do vetor passado para R0
+	JMP, return_isr
+
+subrout_d:			;Tratra da tecla "D" ou "d"
+	MOV, #BOTS_VEL_X, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
+	JSR,R7, jsr_inc_vel	;Pula para suborotina que altera a posição o conteudo do vetor passado para R0
+	JMP, return_isr
+
+subrout_a:			;Tratra da tecla "D" ou "d"
+	MOV, #BOTS_VEL_X, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
+	JSR,R7, jsr_dec_vel	;Pula para suborotina que altera a posição o conteudo do vetor passado para R0
+	JMP, return_isr
+;==================================================
+;JSR_INC_VEL: Responsável por incementar o conteudo
+;apontado por R0. Essa subroutina é usada tanto
+;para o eixo X e Y.
+;==================================================
+JSR_INC_VEL:
+	MOV, CURRENT_ROBOT, R1	;Move o robo atual para R1
+	ASL, R1			;Duplica o valor de R1(CURRENT_ROBOT) em para saber quantas posições de memoria é preciso avançar
+	SUB, #2, R1		;R1 = (2 * CURRENT_ROBOT) - 2
+	ADD, R1, R0		;Move o ponteiro do vetor R0 em R1 endereços
+	INC, (R0)		;Incrementa em 1 o conteudo apontado por R0, que é o enedereço da velocidade Y do robo atual.
+	RTS, R7
 
 ;==================================================
-;	JSR_TIMER: Interrupção pelo timer
+;JSR_DEC_VEL: Responsável por decrementar o conteudo
+;apontado por R0. Essa subroutina é usada tanto
+;para o eixo X e Y.
 ;==================================================
-JSR_TIMER:
+JSR_DEC_VEL:
+	MOV, CURRENT_ROBOT, R1	;Move o robo atual para R1
+	ASL, R1			;Duplica o valor de R1(CURRENT_ROBOT) em para saber quantas posições de memoria é preciso avançar
+	SUB, #2, R1		;R1 = (2 * CURRENT_ROBOT) - 2
+	ADD, R1, R0		;Move o ponteiro do vetor R0 em R1 endereços
+	DEC, (R0)		;Decrementa em 1 o conteudo apontado por R0, que é o enedereço da velocidade Y do robo atual.
+	RTS, R7
 	
 ;==================================================
-;JSR_N: TRATA A INTERRUPÇÃO ATIVADA PELA TECLA "N" OU "n"
+;	JSR_TIMER: Interrup??o pelo timer
+;==================================================
+JSR_TIMER:
+	HLT		;Implementar aqui o incremento da posição pela velocidade
+	
+;==================================================
+;JSR_N: TRATA A INTERRUPCAO ATIVADA PELA TECLA "N" OU "n"
 ;==================================================	
 JSR_N:
 	INC,ACTIVED_ROBOTS	;;Incrementa o contador 
@@ -144,7 +215,7 @@ JSR_N:
 
 JSR_CVISOR:
 
-	MOV, #31, R0 ;;TAMANHO DA FRASE
+	MOV, #36, R0 ;;TAMANHO DA FRASE
 	MOV, #VISOR, R2
 loopVisor:
 
@@ -200,9 +271,9 @@ bkp_R2: dw 0
 bkp_R3: dw 0
 
 ;==================================================
-;Vetor de 4 posições, responsável por armazenar as 
-;posições X e Y de cada robô. (Para acessar o 
-;endereço usa #BOTS_POSI... acessar o conteúdo usa BOTS_POS...)
+;Vetor de 4 posi??es, respons?vel por armazenar as 
+;posi??es X e Y de cada rob?. (Para acessar o 
+;endere?o usa #BOTS_POSI... acessar o conte?do usa BOTS_POS...)
 
 BOTS_POSITIONS_X: daw [4]	
 BOTS_POSITIONS_Y: daw [4]
@@ -210,14 +281,14 @@ BOTS_POSITIONS_Y: daw [4]
 
 
 ;==================================================
-;Vetor de 4 posições, responsável por armazenar as 
-;velocidades nos eixos X e Y de cada robô. (Para acessar o 
-;endereço usa #BOTS_POSI... acessar o conteúdo usa BOTS_POS...)
+;Vetor de 4 posi??es, respons?vel por armazenar as 
+;velocidades nos eixos X e Y de cada rob?. (Para acessar o 
+;endere?o usa #BOTS_POSI... acessar o conte?do usa BOTS_POS...)
 
 BOTS_VEL_X: daw [4]
 BOTS_VEL_Y: daw [4]
 ;==================================================
-;Vetor de 4 posições, responsável por guardar a flag
-;de ativação dos robos.
+;Vetor de 4 posi??es, respons?vel por guardar a flag
+;de ativa??o dos robos.
 BOTS: daw [4]
 ;==================================================
