@@ -6,13 +6,22 @@ INTE: 	EQU 65497
 TECST: 	EQU 65498
 TECDT: 	EQU 65499 
 VISOR:	EQU 65500
+POS_X:  EQU 65508
+POS_X_SIGNAL: EQU 65510
+POS_Y:  EQU 65515
+POS_Y_SIGNAL: EQU 65517
+POS_vY:  EQU 65522
+POS_vY_SIGNAL: EQU 65525
+POS_vX:  EQU 65528
+POS_vX_SIGNAL: EQU 65531  
+ 
 
 	CLR, INTS
 	CLR, TECST
 	CLR, TECDT
 	MOV, #ISR, IVET
 	MOV, #130, INTE 	;Ativa as interrup??es de teclado apenas [1]0000[1]0
-	MOV, #STACKPT, R6	;;Inicia a pilha
+	MOV, #STACKPT, R6		;Inicia a pilha
 
 inicio: TST, ACTIVED_ROBOTS ;;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
 	BNE, main
@@ -22,25 +31,16 @@ inicio: TST, ACTIVED_ROBOTS ;;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
 
 main:
 	;MOV, #131, INTE		;Habilita as interrupções de timer
-	JSR, R7, JSR_CVISOR	;Limpa o visor
-	JSR, R7, JSR_MSG02	;
+	JSR, R7, JSR_CVISOR		;Limpa o visor
 	JMP, wait_command
-	
-	
-
-
-
-
-
 
 ORG 6000 
 ;==================================================
 ;	      	WAIT_COMMAND
 ;==================================================
-wait_command:
-wc_loop:
-	MOV, R0,R0
-	JMP, wc_loop
+wait_command:		
+	JSR, R7, JSR_MSG02
+	JMP, wait_command
 
 ;==================================================
 ;	      MENSAGEM: ROBOS PARADOS
@@ -49,7 +49,9 @@ JSR_MSG01:
 	CLR, INTE		;Desabilita as interru??es de hardware
 	MOV, #MESSAGE01, R1	;R1 cont?m o primeiro endere?o da string MESSAGE01
 	MOV, #VISOR, R2		;R2 cont?m o primeiro endere?o do VISOR
-loop:	CMP,(R1), #47		;Verifica se est? na ?ltima posi??o da string "\'
+
+loop:	
+	CMP,(R1), #47		;Verifica se est? na ?ltima posi??o da string "\'
 	BEQ,out			;Se z = 1, a ?ltima possi??o da string foi alcan?ada
 	MOV,(R1)+, (R2)
 	INC,R2
@@ -63,31 +65,61 @@ out:
 ;	      MENSAGEM: ROBO X:
 ;==================================================
 JSR_MSG02:
-	MOV, #MESSAGE02, R1	;R1 cont?m o primeiro endere?o da string MESSAGE02
-	MOV, #VISOR, R2		;R2 cont?m o primeiro endere?o do VISOR
+	MOV, #MESSAGE02, R1	;R1 contem o primeiro endere?o da string MESSAGE02
+	MOV, #VISOR, R2		;R2 contem o primeiro endere?o do VISOR
+
 loop_msg02:
-	CMP,(R1), #47		;Verifica se est? na ?ltima posi??o da string "\"
+	CMP,(R1), #47		;Verifica se est? na ultima posi??o da string "\"
 	BEQ,out_msg02		;Se z = 1, a ?ltima possi??o da string foi alcan?ada
 	CMP,(R1), #42		;Verifica se ? o caractere "*"
 	BNE, go
 	
-	MOV,CURRENT_ROBOT, R0	
-	ADD,#48, R0		;Transforma o n?mero de current_robot em codifica??o ASCII
+	JSR, R7, JSR_POSITION	;Coloca as strings "X:", "Y:" , "vX:" e "vY:" no visor
+	
+	MOV,CURRENT_ROBOT, R0	;Salva o robo atual em R0	
+	ADD,#48, R0		;Transforma o numero de current_robot em codifica??o ASCII
 	MOV,R0, (R2)		;Coloca o current_robot na posi??o demarcada pelo caractere "*"
 	INC,R2
 	ADD, #2, R1		;Incrementa o ponteiro da string MESSAGE02
 go:	MOV,(R1)+, (R2)		
 	INC,R2
 	JMP, loop_msg02
+
+	MOV,CURRENT_ROBOT, R0	;Salva o robo atual em R0
+	 
+	
 out_msg02:
 	RTS, R7
 
 ;==================================================
-;	JSR_ROBOT:
+; JSR_POSITION:
 ;==================================================
-JSR_ROBOT:
+JSR_POSITION:
+	MOV, #POS_X, R0
+	MOV, #89,(R0)
+	INC, R0
+	MOV,  #58, (R0)
+
+	MOV, #POS_Y, R0
+	MOV, #88,(R0)
+	INC, R0
+	MOV,  #58, (R0)
 	
+	MOV, #POS_vY, R0
+	MOV, #118, (R0)
+	INC, R0
+	MOV, #89, (R0)
+	INC, R0
+	MOV,  #58, (R0)
 	
+	MOV, #POS_vX, R0
+	MOV, #118, (R0)
+	INC, R0
+	MOV, #88, (R0)
+	INC, R0
+	MOV,  #58, (R0)
+	
+	RTS, R7
 
 ;==================================================
 ;	ISR: REA??O AO TECLADO & TIMER
@@ -168,6 +200,7 @@ subrout_a:			;Tratra da tecla "D" ou "d"
 	MOV, #BOTS_VEL_X, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
 	JSR,R7, jsr_dec_vel	;Pula para suborotina que altera a posição o conteudo do vetor passado para R0
 	JMP, return_isr
+
 ;==================================================
 ;JSR_INC_VEL: Responsável por incementar o conteudo
 ;apontado por R0. Essa subroutina é usada tanto
@@ -204,9 +237,19 @@ JSR_TIMER:
 ;JSR_N: TRATA A INTERRUPCAO ATIVADA PELA TECLA "N" OU "n"
 ;==================================================	
 JSR_N:
+	CMP, ACTIVED_ROBOTS, #4
+	BEQ, max_bots		
+		
 	INC,ACTIVED_ROBOTS	;;Incrementa o contador 
 	ADD, #1, CURRENT_ROBOT	;;Seta o robo atual para
 	JSR, R7, JSR_CVISOR	;;Limpa o visor
+	JMP, out_jsr_n
+
+max_bots:
+	;Implementar aqui a função que mostra a mensagem
+	;NÃO HÁ ROBOS LIVRES por 2 segundos
+
+out_jsr_n:
 	RTS, R7
 
 ;==================================================
@@ -269,6 +312,8 @@ bkp_R0: dw 0
 bkp_R1: dw 0
 bkp_R2: dw 0
 bkp_R3: dw 0
+
+
 
 ;==================================================
 ;Vetor de 4 posi??es, respons?vel por armazenar as 
