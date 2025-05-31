@@ -24,7 +24,7 @@ POS_vX_SIGNAL: EQU 65531
 	MOV, #130, INTE 	;Ativa as interrup??es de teclado apenas [1]0000[1]0
 	MOV, #STACKPT, R6		;Inicia a pilha
 
-inicio: TST, ACTIVED_ROBOTS ;;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
+inicio: TST, ACTIVED_ROBOTS 	;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
 	BNE, main
 	JSR, R7,JSR_MSG01
 	JMP, inicio
@@ -42,7 +42,6 @@ ORG 6000
 wait_command:
 	TST, FLAG_TIMER
 	BEQ, jmp_wc		;Se z = 1, FLAG_TIMER  = 0
-	JSR,R7,JSR_CVISOR
 	JSR, R7, JSR_MSG03		;Mostra a mensagem "Nao ha robos livres"
 	JMP,wait_command	
 jmp_wc:
@@ -114,10 +113,22 @@ go:	MOV,(R1)+, (R2)
 	INC,R2
 	JMP, loop_msg02
 
-	MOV,CURRENT_ROBOT, R0	;Salva o robo atual em R0
 	 
 	
 out_msg02:
+	MOV, #BOTS_POSITIONS_X, R1	;Coloca o endereço do inicio do vetor em R1
+	MOV, CURRENT_ROBOT, R0		;Robo atual
+	ASL, R0				;
+	SUB, #2, R0			; (2 * CURRENT_ROBOT) - 2
+	ADD, R0, R1			;Move o ponteiro para o endereco do CURRETN_ROBOTS
+	MOV, #POS_X,R2			;Coloca em R2 o endereço de inicio da string.
+	ADD, #4, R2
+	MOV	(R1),-(R6)		;Empilha o VALOR do número 'n'(BOT_POSITION_X)
+	MOV	R2,-(R6)		;Empilha o endereço do visor
+	JSR, R7, int2str		
+	ADD, #4 ,R6			;Limpar pilha
+
+
 	RTS, R7
 
 ;==================================================
@@ -186,7 +197,7 @@ return_isr:
 
 
 ;==================================================
-;	J_TCL: Interrup??o pelo teclado
+;	J_TCL: Interrupcao pelo teclado
 ;==================================================
 
 J_TCL:
@@ -194,6 +205,11 @@ J_TCL:
 	BEQ, subrout_n
 	CMP,TECDT, #110
 	BEQ, subrout_n
+
+	CMP,TECDT, #82		;Verifica se "R" ou "r" foi apertado			
+	BEQ, subrout_r
+	CMP,TECDT, #114
+	BEQ, subrout_r
 	
 	CMP,TECDT, #87		;Verifica se "W" ou "w" foi apertado			
 	BEQ, subrout_w
@@ -220,6 +236,9 @@ J_TCL:
 subrout_n:			;Tratra da tecla "N" ou "n"
 	JSR,R7, jsr_n
 	JMP, return_isr
+
+subrout_r:			;Trata a tecla "P" ou "p"
+
 
 subrout_w:			;Tratra da tecla "W" ou "w"
 	MOV, #BOTS_VEL_Y, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
@@ -304,6 +323,7 @@ JSR_N:
 	JMP, out_jsr_n
 
 max_bots:
+	JSR,R7,JSR_CVISOR
 	MOV, #1, FLAG_TIMER	;Ativa a flag timer
 	MOV, #20, MSG_TIMER	;Seta para 20 o contador, cada unidade representa 100 ms
 	
@@ -353,6 +373,60 @@ jsr_rx_in:
 	RTS, R7
 
 ;==================================================
+;	CONVERTE INTEIRO PARA STRING
+;==================================================
+int2str:
+	MOV 2(R6),R1 ; s
+	MOV 4(R6),R2 ; n
+	BPL EhPositivo ; if ( n < 0 ) {
+	NEG R2 ; n = -n;
+	MOV -1(R1),R0 ; *s++ = '-';
+	AND #HFF00,R0
+	OR #'-',R0
+	MOV R0,-1(R1)
+	INC R1
+
+EhPositivo:
+	MOV R2,-(R6) ; uint2str(s,n);
+	MOV R1,-(R6)
+	JSR R7,uint2str
+	ADD #4,R6
+	RTS R7
+
+uint2str:
+	MOV 2(R6),R1 ; R1 = s
+	MOV 4(R6),R2 ; R2 = n
+	MOV #Tab10,R4 ; pTab10 = Tab10;
+	MOV #3,R5 ; Lacos = 3;
+
+Loop_uint2str:
+	MOV #'0',R3 ; dig = '0';
+
+LoopInterno:
+	CMP R2,(R4) ; while (n >= *pTab10) {
+	BLT EhMenor
+	INC R3 ; ++dig;
+	SUB (R4),R2 ; n -= *pTab10;
+	JMP LoopInterno ; }
+	
+EhMenor:
+	MOV -1(R1),R0 		; *s++ = dig;
+	AND #HFF00,R0
+	OR R3,R0
+	MOV R0,-1(R1)
+	INC R1
+	ADD #2,R4 		; ++pTab10;
+	SOB R5,Loop_uint2str		; } while (--Lacos);
+	ADD #'0',R2 		; *s++ = n + '0';
+	MOV -1(R1),R0
+	AND #HFF00,R0
+	OR R2,R0
+	MOV R0,-1(R1)
+	INC R1
+
+	RTS R7
+
+;==================================================
 
 ORG 30000
 ACTIVED_ROBOTS: dw 0
@@ -374,7 +448,7 @@ bkp_R1: dw 0
 bkp_R2: dw 0
 bkp_R3: dw 0
 
-
+Tab10: daw 1000, 100, 10
 
 ;==================================================
 ;Vetor de 4 posi??es, respons?vel por armazenar as 
