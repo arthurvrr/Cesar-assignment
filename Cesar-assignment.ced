@@ -19,6 +19,7 @@ POS_vX_SIGNAL: EQU 65531
 	CLR, INTS
 	CLR, TECST
 	CLR, TECDT
+	CLR, TIMD
 	MOV, #ISR, IVET
 	MOV, #130, INTE 	;Ativa as interrup??es de teclado apenas [1]0000[1]0
 	MOV, #STACKPT, R6		;Inicia a pilha
@@ -133,14 +134,18 @@ ISR:
 	AND,MASK_TCL, R0	;Verifica se a interrup??o foi gerada pelo teclado
 	CMP,R0,#2		
 	BEQ,J_TCL		;Pula para o tratamento de interrup??o do teclado
+
+	INC, TIMER_COUNT	;Incrementa o contador de timer
 	
+	CMP, #10, TIMER_COUNT	;Verifica se já foram feitas 10 interrupções(1 seg)
+	BNE, return_isr		;Se não forem feitas 10 interrupções, pula para o final	
 	JSR, R7, JSR_TIMER	;Pula para o tratamento da interrup??o de timer
 	
 return_isr:
 	CLR,TECDT	
 	JSR,R7, jsr_rx_in	;Retorna para os registradores o seu conteudo
 	MOV, MASK_CL, INTS	;Seta INTS pra [1]000000
-	MOV, #130, INTE 	;Ativa as interrup??es de teclado e timer
+	MOV, #131, INTE 	;Ativa as interrup??es de teclado e timer
 	RTI	
 
 
@@ -231,8 +236,23 @@ JSR_DEC_VEL:
 ;	JSR_TIMER: Interrup??o pelo timer
 ;==================================================
 JSR_TIMER:
-	HLT		;Implementar aqui o incremento da posição pela velocidade
+	MOV, ACTIVED_ROBOTS, R0	;Move a quantidade de robos para R0,  que é o contador
+	MOV, #BOTS_POSITIONS_X, R1
+	MOV, #BOTS_POSITIONS_Y, R2
+	MOV, #BOTS_VEL_X, R3
+	MOV, #BOTS_VEL_Y, R4
+
+loop_timer:
+	TST, R0			;Verifica se o contador esta em zero, se sim
+	BEQ, out_timer		;sai da subrotina
+	ADD, (R3)+,(R1)+	;Soma R3 (VEL_X[n]) ao conteudo contido no endereço R1 (POS_X[N])
+	ADD, (R4)+,(R2)+	;Soma R1 (VEL_Y[n]) ao conteudo contido no endereço R4 (POS_X[N])
+	DEC, R0			;Decrementa um do contador
+	JMP, loop_timer		;Volta para o inicio do loop
 	
+out_timer:
+	CLR, TIMER_COUNT
+	RTS,R7
 ;==================================================
 ;JSR_N: TRATA A INTERRUPCAO ATIVADA PELA TECLA "N" OU "n"
 ;==================================================	
@@ -299,6 +319,7 @@ jsr_rx_in:
 ORG 30000
 ACTIVED_ROBOTS: dw 0
 CURRENT_ROBOT: dw 0
+TIMER_COUNT: dw 0
 
 MASK_CL: dw 128
 MASk_TCL: dw 2
