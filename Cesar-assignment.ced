@@ -39,7 +39,13 @@ ORG 6000
 ;==================================================
 ;	      	WAIT_COMMAND
 ;==================================================
-wait_command:		
+wait_command:
+	TST, FLAG_TIMER
+	BEQ, jmp_wc		;Se z = 1, FLAG_TIMER  = 0
+	JSR,R7,JSR_CVISOR
+	JSR, R7, JSR_MSG03		;Mostra a mensagem "Nao ha robos livres"
+	JMP,wait_command	
+jmp_wc:
 	JSR, R7, JSR_MSG02
 	JMP, wait_command
 
@@ -61,7 +67,29 @@ loop:
 out:	
 	MOV, #130, INTE		;Habilita as interrupções de teclado novamente
 	RTS, R7
+;==================================================
+;	   MENSAGEM: NÃO HA ROBOS LIVRES
+;==================================================
+JSR_MSG03:
+	TST, MSG_TIMER
+	BEQ, flag_flip
+	CLR, INTE		;Desabilita as interru??es de hardware
+	MOV, #MESSAGE03, R1	;R1 cont?m o primeiro endere?o da string MESSAGE03
+	MOV, #VISOR, R2		;R2 cont?m o primeiro endere?o do VISOR
 
+loop_msg03:	
+	CMP,(R1), #47		;Verifica se est? na ?ltima posi??o da string "\'
+	BEQ,out_msg03			;Se z = 1, a ?ltima possi??o da string foi alcan?ada
+	MOV,(R1)+, (R2)
+	INC,R2
+	JMP, loop_msg03
+
+flag_flip:
+	CLR, FLAG_TIMER		;Seta para zero a flag_timer quando MSG_TIMER = 0
+out_msg03:
+	MOV, #131, INTE		;Habilita as interrupções de teclado e timer
+	RTS, R7
+	
 ;==================================================
 ;	      MENSAGEM: ROBO X:
 ;==================================================
@@ -123,7 +151,7 @@ JSR_POSITION:
 	RTS, R7
 
 ;==================================================
-;	ISR: REA??O AO TECLADO & TIMER
+;	ISR: REACAO AO TECLADO & TIMER
 ;==================================================
 ISR:
 	clr,INTE		;Desabilita as interrup??es de hardware
@@ -136,7 +164,14 @@ ISR:
 	BEQ,J_TCL		;Pula para o tratamento de interrup??o do teclado
 
 	INC, TIMER_COUNT	;Incrementa o contador de timer
+
+	MOV, FLAG_TIMER, R0	;Verifica se FLAG_TIMER = 1
+	TST, R0
+	BEQ, go_isr		;Se z = 1, FLAG_TIMER = 0, pula pra continuação
+	DEC, MSG_TIMER		;Decrementa em 100 ms.
+
 	
+go_isr:
 	CMP, #10, TIMER_COUNT	;Verifica se já foram feitas 10 interrupções(1 seg)
 	BNE, return_isr		;Se não forem feitas 10 interrupções, pula para o final	
 	JSR, R7, JSR_TIMER	;Pula para o tratamento da interrup??o de timer
@@ -236,6 +271,9 @@ JSR_DEC_VEL:
 ;	JSR_TIMER: Interrup??o pelo timer
 ;==================================================
 JSR_TIMER:
+	
+	
+start_jsr_timer:
 	MOV, ACTIVED_ROBOTS, R0	;Move a quantidade de robos para R0,  que é o contador
 	MOV, #BOTS_POSITIONS_X, R1
 	MOV, #BOTS_POSITIONS_Y, R2
@@ -266,9 +304,9 @@ JSR_N:
 	JMP, out_jsr_n
 
 max_bots:
-	;Implementar aqui a função que mostra a mensagem
-	;NÃO HÁ ROBOS LIVRES por 2 segundos
-
+	MOV, #1, FLAG_TIMER	;Ativa a flag timer
+	MOV, #20, MSG_TIMER	;Seta para 20 o contador, cada unidade representa 100 ms
+	
 out_jsr_n:
 	RTS, R7
 
@@ -320,6 +358,8 @@ ORG 30000
 ACTIVED_ROBOTS: dw 0
 CURRENT_ROBOT: dw 0
 TIMER_COUNT: dw 0
+MSG_TIMER: dw 0
+FLAG_TIMER: dw 0
 
 MASK_CL: dw 128
 MASk_TCL: dw 2
