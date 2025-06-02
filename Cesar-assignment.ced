@@ -413,15 +413,13 @@ jsr_rx_in:
 ;	CONVERTE INTEIRO PARA STRING (POSICAO)
 ;==================================================
 int2str:
-	MOV 2(R6),R1 ; s
-	MOV 4(R6),R2 ; n
-	BPL EhPositivo ; if ( n < 0 ) {
-	NEG R2 ; n = -n;
-	MOV -1(R1),R0 ; *s++ = '-';
-	AND #HFF00,R0
-	OR #'-',R0
-	MOV R0,-1(R1)
-	INC R1
+	MOV 2(R6),R1 		;Coloca o endereco do visor(onde os caracteres comecam) no R1
+	MOV 4(R6),R2		;Coloca o numero a ser convertido (Posicao) no R2
+	BPL EhPositivo		;Verifica se R2 >= 0( N = 0 ), se sim, pula para EhPositivo
+	
+	NEG R2 			;Transforma o numero negativo em posito ( -123 -> 123 ) 		
+	MOV, #'-', -1(R1)
+	INC, R1
 
 EhPositivo:
 	MOV R2,-(R6) ; uint2str(s,n);
