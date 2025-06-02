@@ -460,9 +460,11 @@ jsr_number:
 	MOV, TECDT, R0		;Move o digito pressionado para o teclado
 	SUB, #48, R0
 	ASL, R0			;Dobra o valor de R0
+	SUB, #2, R0
 	ADD, R0, R1		;Muda o ponteiro de BOTS[N]
 	TST,(R1)		;Levanta as flagas da posicao BOTS[n]
 	BEQ, out_jsr_number	;Se na posicao BOTS[N] tiver 0 (z = 1) nada é feito
+	ADD, #2, R0
 	ASR, R0
 	MOV, R0, CURRENT_ROBOT
 	
