@@ -294,7 +294,7 @@ subrout_n:			;Tratra da tecla "N" ou "n"
 	JSR,R7, jsr_n
 	JMP, return_isr
 
-subrout_r:			;Trata a tecla "P" ou "p"
+subrout_r:			;Trata a tecla "r" ou "R"
 
 
 subrout_w:			;Tratra da tecla "W" ou "w"
@@ -371,26 +371,62 @@ out_timer:
 ;JSR_N: TRATA A INTERRUPCAO ATIVADA PELA TECLA "N" OU "n"
 ;==================================================	
 JSR_N:
-	CMP, ACTIVED_ROBOTS, #4
-	BEQ, max_bots		
-		
-	INC,ACTIVED_ROBOTS	;;Incrementa o contador 
-	ADD, #1, CURRENT_ROBOT	;;Seta o robo atual para
-	JSR, R7, JSR_CVISOR	;;Limpa o visor
-	JMP, out_jsr_n
+	CLR, R1
+	;Inicio da refatoracao
+	MOV, #BOTS, R0		;Coloco o endereco do vetor BOTS em R2
 
+loop_jsr_n:
+	TST, (R0)		;Levanda as flags de BOTS[N]	
+	BEQ, active_bot		; Se z = 1, é possível ativar o robo nessa posicao	
+	ADD, #2, R0		; Se z = 0, o robo já esta ativado, incrementa o ponteiro R0 
+	INC, R1			; Incrementa o contador que verifica
+	CMP, R1, #4		; Verifica se as 4 posicoes do vetor BOTS foram percorridas 		
+	BEQ, max_bots		; Se todas as posicoes foram percorridas entao nao foi encontrado um robo livre
+	JMP, loop_jsr_n		; Verifica as outras posicoes
+
+active_bot:
+	JSR, R7, clean_data	; Limpa os valores em BOTS_POSITION_X, BOTS_POSITION_Y, BOTS_VEL_X e BOTS_VEL_Y
+	MOV, R1, CURRENT_ROBOT
+	JMP, out_jsr_n
+	
 max_bots:
 	JSR,R7,JSR_CVISOR
 	MOV, #1, FLAG_TIMER	;Ativa a flag timer
 	MOV, #20, MSG_TIMER	;Seta para 20 o contador, cada unidade representa 100 ms
 	
-out_jsr_n:
+out_jsr_n:	
+	RTS, R7
+;==================================================
+;	LIMPA AS POSICOES E VELOCIDADES
+;==================================================
+clean_data:
+	ASL, R1				;Dobra R1 para apontar para o robo correto (16 bits)
+	
+	MOV, #BOTS, R0			;Coloca o endereco de BOTS[N] em  R0
+	ADD, R1, R0			;Muda o ponteiro
+	CLR (R0)			;Limpa o conteudo em BOTS[N]
+	ADD, #1, (R0)			;Coloca 1 em BOTS[N]
+
+	MOV, #BOTS_POSITIONS_X, R0	;R0 contem o endereco de BOTS_POSITION_X	
+	ADD, R1, R0			;Desloca o ponteiro de R0
+	CLR, (R0)			;Limpa a posicao X
+	MOV, #BOTS_POSITIONS_Y, R0
+	ADD, R1, R0			;Desloca o ponteiro de R0
+	CLR, (R0)			;Limpa a posicao Y
+
+	MOV, #BOTS_VEL_Y, R0
+	ADD, R1, R0			;Desloca o ponteiro de R0
+	CLR, (R0)			;Limpa a velocidade Y
+	MOV, #BOTS_VEL_X, R0
+	ADD, R1, R0			;Desloca o ponteiro de R0
+	CLR, (R0)			;Limpa a velocidade X
+	
+	ASR, R1
 	RTS, R7
 
 ;==================================================
 ;		LIMPA O VISOR
 ;==================================================
-
 JSR_CVISOR:
 
 	MOV, #36, R0 ;;TAMANHO DA FRASE
@@ -566,8 +602,6 @@ Tab10_vel: dw 10
 
 BOTS_POSITIONS_X: daw [4]	
 BOTS_POSITIONS_Y: daw [4]
-;==================================================
-
 
 ;==================================================
 ;Vetor de 4 posi??es, respons?vel por armazenar as 
