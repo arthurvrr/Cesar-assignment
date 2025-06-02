@@ -24,7 +24,9 @@ POS_vX_SIGNAL: EQU 65531
 	MOV, #130, INTE 	;Ativa as interrup??es de teclado apenas [1]0000[1]0
 	MOV, #STACKPT, R6		;Inicia a pilha
 
-inicio: TST, ACTIVED_ROBOTS 	;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
+inicio: 
+	
+	TST, ACTIVED_ROBOTS 	;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
 	BNE, main
 	JSR, R7,JSR_MSG01
 	JMP, inicio
@@ -40,7 +42,10 @@ ORG 6000
 ;	      	WAIT_COMMAND
 ;==================================================
 wait_command:
-	TST, FLAG_TIMER
+	TST, ACTIVED_ROBOTS
+	BNE, go_wc
+	JMP, inicio
+go_wc:	TST, FLAG_TIMER
 	BEQ, jmp_wc		;Se z = 1, FLAG_TIMER  = 0
 	JSR, R7, JSR_MSG03		;Mostra a mensagem "Nao ha robos livres"
 	JMP,wait_command	
@@ -267,7 +272,7 @@ J_TCL:
 	BEQ, subrout_r
 	CMP,TECDT, #114
 	BEQ, subrout_r
-	
+
 	CMP,TECDT, #87		;Verifica se "W" ou "w" foi apertado			
 	BEQ, subrout_w
 	CMP,TECDT, #119
@@ -277,25 +282,40 @@ J_TCL:
 	BEQ, subrout_s
 	CMP,TECDT, #115
 	BEQ, subrout_s
-
+	
 	CMP,TECDT, #65		;Verifica se "A" ou "a" foi apertado			
 	BEQ, subrout_a
 	CMP,TECDT, #97
 	BEQ, subrout_a
-
+	
 	CMP,TECDT, #68		;Verifica se "D" ou "d" foi apertado			
 	BEQ, subrout_d
 	CMP,TECDT, #100
 	BEQ, subrout_d
-
+	
+	CMP,TECDT, #49		;Verifica se as teclar 1,2,3 ou 4 foram apertadas		
+	BEQ, subrout_number
+	CMP,TECDT, #50
+	BEQ, subrout_number
+	CMP,TECDT, #51					
+	BEQ, subrout_number
+	CMP,TECDT, #52
+	BEQ, subrout_number
+	
 	JMP, return_isr		;Caso a tecla apertada for inválida, retorna ao programa principal
+;==================================================
 
 subrout_n:			;Tratra da tecla "N" ou "n"
 	JSR,R7, jsr_n
 	JMP, return_isr
 
-subrout_r:			;Trata a tecla "r" ou "R"
+subrout_number:
+	JSR,R7, jsr_number
+	JMP, return_isr
 
+subrout_r:			;Trata a tecla "r" ou "R"
+	JSR,R7, jsr_r
+	JMP, return_isr
 
 subrout_w:			;Tratra da tecla "W" ou "w"
 	MOV, #BOTS_VEL_Y, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
@@ -307,14 +327,14 @@ subrout_s:			;Tratra da tecla "S" ou "s"
 	JSR,R7, jsr_dec_vel	;Pula para suborotina que altera a posição o conteudo do vetor passado para R0
 	JMP, return_isr
 
+subrout_a:			;Tratra da tecla "A" ou "a"
+	MOV, #BOTS_VEL_X, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
+	JSR,R7, jsr_dec_vel	;Pula para suborotina que altera a posição o conteudo do vetor passado para R0
+	JMP, return_isr
+
 subrout_d:			;Tratra da tecla "D" ou "d"
 	MOV, #BOTS_VEL_X, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
 	JSR,R7, jsr_inc_vel	;Pula para suborotina que altera a posição o conteudo do vetor passado para R0
-	JMP, return_isr
-
-subrout_a:			;Tratra da tecla "D" ou "d"
-	MOV, #BOTS_VEL_X, R0	;Passa o endereço da primeira posição de BOTS_VEL_Y para R0
-	JSR,R7, jsr_dec_vel	;Pula para suborotina que altera a posição o conteudo do vetor passado para R0
 	JMP, return_isr
 
 ;==================================================
@@ -323,11 +343,16 @@ subrout_a:			;Tratra da tecla "D" ou "d"
 ;para o eixo X e Y.
 ;==================================================
 JSR_INC_VEL:
+	TST, ACTIVED_ROBOTS
+	BEQ, out_jsr_inc_vel
+
 	MOV, CURRENT_ROBOT, R1	;Move o robo atual para R1
 	ASL, R1			;Duplica o valor de R1(CURRENT_ROBOT) em para saber quantas posições de memoria é preciso avançar
 	SUB, #2, R1		;R1 = (2 * CURRENT_ROBOT) - 2
 	ADD, R1, R0		;Move o ponteiro do vetor R0 em R1 endereços
 	INC, (R0)		;Incrementa em 1 o conteudo apontado por R0, que é o enedereço da velocidade Y do robo atual.
+
+out_jsr_inc_vel:
 	RTS, R7
 
 ;==================================================
@@ -336,15 +361,20 @@ JSR_INC_VEL:
 ;para o eixo X e Y.
 ;==================================================
 JSR_DEC_VEL:
+	TST, ACTIVED_ROBOTS
+	BEQ, out_jsr_inc_vel
+
 	MOV, CURRENT_ROBOT, R1	;Move o robo atual para R1
 	ASL, R1			;Duplica o valor de R1(CURRENT_ROBOT) em para saber quantas posições de memoria é preciso avançar
 	SUB, #2, R1		;R1 = (2 * CURRENT_ROBOT) - 2
 	ADD, R1, R0		;Move o ponteiro do vetor R0 em R1 endereços
 	DEC, (R0)		;Decrementa em 1 o conteudo apontado por R0, que é o enedereço da velocidade Y do robo atual.
+
+out_jsr_dec_vel:
 	RTS, R7
 	
 ;==================================================
-;	JSR_TIMER: Interrup??o pelo timer
+;	JSR_TIMER: Interrupcao pelo timer
 ;==================================================
 JSR_TIMER:
 	
@@ -385,8 +415,10 @@ loop_jsr_n:
 	JMP, loop_jsr_n		; Verifica as outras posicoes
 
 active_bot:
+	INC, ACTIVED_ROBOTS
 	JSR, R7, clean_data	; Limpa os valores em BOTS_POSITION_X, BOTS_POSITION_Y, BOTS_VEL_X e BOTS_VEL_Y
 	MOV, R1, CURRENT_ROBOT
+	INC, CURRENT_ROBOT
 	JMP, out_jsr_n
 	
 max_bots:
@@ -396,6 +428,47 @@ max_bots:
 	
 out_jsr_n:	
 	RTS, R7
+
+;==================================================
+;JSR_R: TRATA A INTERRUPCAO ATIVADA PELA TECLA "R" OU "r"
+;==================================================
+jsr_r:
+	TST, ACTIVED_ROBOTS
+	BEQ, out_jsr_r
+
+	MOV, #BOTS, R1		;Move o endereco de BOTS para R1
+	MOV, CURRENT_ROBOT, R0	;Coloca o robo atual em R0
+	DEC, R0			;Decrementa em um para ajustar o ponteiro
+	ASL, R0			;Dobra o valor para ajustar o ponteiro
+	ADD, R0, R1		;Move o ponteiro de R1 em R0 posicoes
+	CLR, (R1)		;Limpa a Flag de BOTS[N]
+	DEC, CURRENT_ROBOT	;Decrementa CURRENT_ROBOT em 1 para mostrar no visor robo anteriror
+	DEC, ACTIVED_ROBOTS	
+	JSR, R7, jsr_cvisor	;Limpa o visor
+	
+out_jsr_r:
+	RTS, R7
+
+;==================================================
+;	JSR_NUMBER: ALTERNA ENTRE OS ROBOS
+;==================================================
+jsr_number:
+	TST, ACTIVED_ROBOTS
+	BEQ, out_jsr_number
+	
+	MOV, #BOTS, R1
+	MOV, TECDT, R0		;Move o digito pressionado para o teclado
+	SUB, #48, R0
+	ASL, R0			;Dobra o valor de R0
+	ADD, R0, R1		;Muda o ponteiro de BOTS[N]
+	TST,(R1)		;Levanta as flagas da posicao BOTS[n]
+	BEQ, out_jsr_number	;Se na posicao BOTS[N] tiver 0 (z = 1) nada é feito
+	ASR, R0
+	MOV, R0, CURRENT_ROBOT
+	
+out_jsr_number:
+	RTS, R7
+
 ;==================================================
 ;	LIMPA AS POSICOES E VELOCIDADES
 ;==================================================
@@ -583,9 +656,9 @@ MASK_CL: dw 128
 MASk_TCL: dw 2
 MASK_TIM: dw 1
 
-MESSAGE01: daw 'ROBOS PARADOS/'
+MESSAGE01: daw 'ROBOS PARADOS                       /'
 MESSAGE02: daw 'ROBO *:/'
-MESSAGE03: daw 'NAO HA ROBOS LIVRES/'
+MESSAGE03: daw 'NAO HA ROBOS LIVRES                 /'
 
 bkp_R0: dw 0
 bkp_R1: dw 0
