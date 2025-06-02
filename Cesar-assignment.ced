@@ -6,13 +6,13 @@ INTE: 	EQU 65497
 TECST: 	EQU 65498
 TECDT: 	EQU 65499 
 VISOR:	EQU 65500
-POS_Y:  EQU 65508
+POS_Y:  EQU 65507
 POS_Y_SIGNAL: EQU 65510
 POS_X:  EQU 65515
 POS_X_SIGNAL: EQU 65517
-POS_vY:  EQU 65522
+POS_vY:  EQU 65523
 POS_vY_SIGNAL: EQU 65525
-POS_vX:  EQU 65528
+POS_vX:  EQU 65530
 POS_vX_SIGNAL: EQU 65531  
  
 
@@ -123,6 +123,11 @@ out_msg02:
 	SUB, #2, R0			; (2 * CURRENT_ROBOT) - 2
 	ADD, R0, R1			;Move o ponteiro para o endereco do CURRETN_ROBOTS
 	MOV, #POS_Y,R2			;Coloca em R2 o endereço de inicio da string.
+	
+	ADD, #6, R2			;Solução momentanea para o problema do digito
+	MOV,#32, (R2)			;vestigial na troca e negativo para positivo.
+	SUB, #6, R2			;Funciona, mas deixa a última posição piscando
+	
 	ADD, #3, R2
 	MOV, (R1),-(R6)			;Empilha o VALOR do número 'n'(BOT_POSITION_X)
 	MOV, R2,-(R6)			;Empilha o endereço do visor
@@ -135,6 +140,11 @@ out_msg02:
 	SUB, #2, R0			; (2 * CURRENT_ROBOT) - 2
 	ADD, R0, R1			;Move o ponteiro para o endereco do CURRETN_ROBOTS
 	MOV, #POS_X,R2			;Coloca em R2 o endereço de inicio da string.
+	
+	ADD, #6, R2			;Solução momentanea para o problema do digito
+	MOV,#32, (R2)			;vestigial na troca e negativo para positivo.
+	SUB, #6, R2			;Funciona, mas deixa a última posição piscando
+
 	ADD, #3, R2
 	MOV, (R1),-(R6)			;Empilha o VALOR do número 'n'(BOT_POSITION_X)
 	MOV, R2,-(R6)			;Empilha o endereço do visor
@@ -147,7 +157,12 @@ out_msg02:
 	SUB, #2, R0			; (2 * CURRENT_ROBOT) - 2
 	ADD, R0, R1			;Move o ponteiro para o endereco do CURRETN_ROBOTS
 	MOV, #POS_vX,R2			;Coloca em R2 o endereço de inicio da string.
-	ADD, #3, R2
+	
+	ADD, #5, R2			;Solução momentanea para o problema do digito
+	MOV,#32, (R2)			;vestigial na troca e negativo para positivo.
+	SUB, #5, R2			;Funciona, mas deixa a última posição piscando
+
+	ADD, #4, R2
 	MOV, (R1),-(R6)			;Empilha o VALOR do número 'n'(BOT_POSITION_X)
 	MOV, R2,-(R6)			;Empilha o endereço do visor
 	JSR, R7, int2str_vel		
@@ -159,7 +174,12 @@ out_msg02:
 	SUB, #2, R0			; (2 * CURRENT_ROBOT) - 2
 	ADD, R0, R1			;Move o ponteiro para o endereco do CURRETN_ROBOTS
 	MOV, #POS_vY,R2			;Coloca em R2 o endereço de inicio da string.
-	ADD, #3, R2
+	
+	ADD, #5, R2			;Solução momentanea para o problema do digito
+	MOV,#32, (R2)			;vestigial na troca e negativo para positivo.
+	SUB, #5, R2			;Funciona, mas deixa a última posição piscando
+
+	ADD, #4, R2
 	MOV, (R1),-(R6)			;Empilha o VALOR do número 'n'(BOT_POSITION_X)
 	MOV, R2,-(R6)			;Empilha o endereço do visor
 	JSR, R7, int2str_vel		
@@ -413,6 +433,7 @@ jsr_rx_in:
 ;	CONVERTE INTEIRO PARA STRING (POSICAO)
 ;==================================================
 int2str:
+	
 	MOV 2(R6),R1 		;Coloca o endereco do visor(onde os caracteres comecam) no R1
 	MOV 4(R6),R2		;Coloca o numero a ser convertido (Posicao) no R2
 	BPL EhPositivo		;Verifica se R2 >= 0( N = 0 ), se sim, pula para EhPositivo
@@ -468,17 +489,15 @@ int2str_vel:
 	MOV 2(R6),R1 ; s
 	MOV 4(R6),R2 ; n
 	BPL EhPositivo_vel ; if ( n < 0 ) {
-	NEG R2 ; n = -n;
-	MOV -1(R1),R0 ; *s++ = '-';
-	AND #HFF00,R0
-	OR #'-',R0
-	MOV R0,-1(R1)
-	INC R1
+
+	NEG R2 			;Transforma o numero negativo em posito ( -123 -> 123 ) 		
+	MOV, #'-', -1(R1)
+	INC, R1
 
 EhPositivo_vel:
 	MOV R2,-(R6) ; uint2str(s,n);
 	MOV R1,-(R6)
-	JSR R7,uint2str
+	JSR R7,uint2str_vel
 	ADD #4,R6
 	RTS R7
 
@@ -486,7 +505,7 @@ uint2str_vel:
 	MOV 2(R6),R1 ; R1 = s
 	MOV 4(R6),R2 ; R2 = n
 	MOV #Tab10_vel,R4 ; pTab10 = Tab10;
-	MOV #2,R5 ; Lacos
+	MOV #1,R5 ; Lacos
 
 Loop_uint2str_vel:
 	MOV #'0',R3 ; dig = '0';
