@@ -25,13 +25,11 @@ POS_vX_SIGNAL: EQU 65531
 	MOV, #STACKPT, R6		;Inicia a pilha
 
 inicio: 
-	
 	TST, ACTIVED_ROBOTS 	;Se ACTIVED_ROBOTS != 0, EXECUTA O PROGRAMA
 	BNE, main
 	JSR, R7,JSR_MSG01
 	JMP, inicio
 	
-
 main:
 	;MOV, #131, INTE		;Habilita as interrupções de timer
 	JSR, R7, JSR_CVISOR		;Limpa o visor
@@ -90,6 +88,7 @@ loop_msg03:
 
 flag_flip:
 	CLR, FLAG_TIMER		;Seta para zero a flag_timer quando MSG_TIMER = 0
+
 out_msg03:
 	MOV, #131, INTE		;Habilita as interrupções de teclado e timer
 	RTS, R7
@@ -114,14 +113,12 @@ loop_msg02:
 	MOV,R0, (R2)		;Coloca o current_robot na posi??o demarcada pelo caractere "*"
 	INC,R2
 	ADD, #2, R1		;Incrementa o ponteiro da string MESSAGE02
+
 go:	MOV,(R1)+, (R2)		
 	INC,R2
 	JMP, loop_msg02
-
-	 
 	
 out_msg02:
-	
 	MOV, #BOTS_POSITIONS_Y, R1	;Coloca o endereço do inicio do vetor em R1
 	MOV, CURRENT_ROBOT, R0		;Robo atual
 	ASL, R0				;
@@ -190,7 +187,6 @@ out_msg02:
 	JSR, R7, int2str_vel		
 	ADD, #4 ,R6			;Limpar pilha
 
-
 	RTS, R7
 
 ;==================================================
@@ -243,7 +239,6 @@ ISR:
 	BEQ, go_isr		;Se z = 1, FLAG_TIMER = 0, pula pra continuação
 	DEC, MSG_TIMER		;Decrementa em 100 ms.
 
-	
 go_isr:
 	CMP, #10, TIMER_COUNT	;Verifica se já foram feitas 10 interrupções(1 seg)
 	BNE, return_isr		;Se não forem feitas 10 interrupções, pula para o final	
@@ -256,12 +251,9 @@ return_isr:
 	MOV, #131, INTE 	;Ativa as interrup??es de teclado e timer
 	RTI	
 
-
-
 ;==================================================
 ;	J_TCL: Interrupcao pelo teclado
 ;==================================================
-
 J_TCL:
 	CMP,TECDT, #78		;Verifica se "N" ou "n" foi apertado			
 	BEQ, subrout_n
@@ -304,7 +296,6 @@ J_TCL:
 	
 	JMP, return_isr		;Caso a tecla apertada for inválida, retorna ao programa principal
 ;==================================================
-
 subrout_n:			;Tratra da tecla "N" ou "n"
 	JSR,R7, jsr_n
 	JMP, return_isr
@@ -350,7 +341,10 @@ JSR_INC_VEL:
 	ASL, R1			;Duplica o valor de R1(CURRENT_ROBOT) em para saber quantas posições de memoria é preciso avançar
 	SUB, #2, R1		;R1 = (2 * CURRENT_ROBOT) - 2
 	ADD, R1, R0		;Move o ponteiro do vetor R0 em R1 endereços
-	INC, (R0)		;Incrementa em 1 o conteudo apontado por R0, que é o enedereço da velocidade Y do robo atual.
+	CMP,(R0),#99		;Verifica se a velocidade é maior que 99 (positivo)
+	BEQ, out_jsr_inc_vel	;Se sim, não incrementa a velocidade
+
+	INC, (R0)		;Se não, incrementa em 1 o conteudo apontado por R0, que é o enedereço da velocidade Y do robo atual.
 
 out_jsr_inc_vel:
 	RTS, R7
@@ -368,6 +362,8 @@ JSR_DEC_VEL:
 	ASL, R1			;Duplica o valor de R1(CURRENT_ROBOT) em para saber quantas posições de memoria é preciso avançar
 	SUB, #2, R1		;R1 = (2 * CURRENT_ROBOT) - 2
 	ADD, R1, R0		;Move o ponteiro do vetor R0 em R1 endereços
+	CMP, (R0), #-99
+	BEQ, out_jsr_dec_vel
 	DEC, (R0)		;Decrementa em 1 o conteudo apontado por R0, que é o enedereço da velocidade Y do robo atual.
 
 out_jsr_dec_vel:
@@ -456,11 +452,28 @@ jsr_r:
 	ASL, R0			;Dobra o valor para ajustar o ponteiro
 	ADD, R0, R1		;Move o ponteiro de R1 em R0 posicoes
 	CLR, (R1)		;Limpa a Flag de BOTS[N]
-	DEC, CURRENT_ROBOT	;Decrementa CURRENT_ROBOT em 1 para mostrar no visor robo anteriror
-	DEC, ACTIVED_ROBOTS	
-	JSR, R7, jsr_cvisor	;Limpa o visor
+	DEC, ACTIVED_ROBOTS	;Decrementa ACTIVED_ROBOTS
+	
+	CLR, R0
+
+loop_jsr_timer:
+	CMP, R0, #8		;Verifica se o vetor de robos ja foi completamente percorrido 
+	BEQ, out_jsr_r
+
+	MOV, #BOTS, R1		;Move o endereco de BOTS para R1
+	ADD, R0, R1		;Move o ponteiro de BOTS[N]
+	TST, (R1)		;Verifica se o robo atual esta ativo
+	BNE, robot_found	;Se  z=1, o robo esta ativo
+	ADD, #2, R0		;Se nao estiver ativo, move o contador
+	JMP, loop_jsr_timer
+
+robot_found:
+	ASR, R0			
+	INC, R0
+	MOV, R0, CURRENT_ROBOT
 	
 out_jsr_r:
+	JSR, R7, jsr_cvisor	;Limpa o visor
 	RTS, R7
 
 ;==================================================
@@ -532,7 +545,6 @@ out_cvisor:
 
 	RTS, R7
 
-
 ;==================================================
 ;	  SALVA REGISTRADORES NA MEMORIA
 ;==================================================
@@ -544,7 +556,6 @@ jsr_rx_out:
 	MOV, R4, bkp_R4
 	MOV, R5, bkp_r5
 	RTS, R7
-
 
 ;==================================================
 ;	  TIRA OS REGISTRADORES DA MEMORIA
@@ -664,7 +675,6 @@ EhMenor_vel:
 	RTS R7
 
 ;==================================================
-
 ORG 30000
 ACTIVED_ROBOTS: dw 0
 CURRENT_ROBOT: dw 0
