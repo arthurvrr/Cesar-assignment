@@ -541,6 +541,8 @@ jsr_rx_out:
 	MOV, R1, bkp_R1
 	MOV, R2, bkp_R2
 	MOV, R3, bkp_R3
+	MOV, R4, bkp_R4
+	MOV, R5, bkp_r5
 	RTS, R7
 
 
@@ -552,6 +554,8 @@ jsr_rx_in:
 	MOV, bkp_R1, R1
 	MOV, bkp_R2, R2
 	MOV, bkp_R3, R3
+	MOV, bkp_R4, R4
+	MOV, bkp_r5, R5
 	RTS, R7
 
 ;==================================================
@@ -680,6 +684,8 @@ bkp_R0: dw 0
 bkp_R1: dw 0
 bkp_R2: dw 0
 bkp_R3: dw 0
+bkp_R4: dw 0
+bkp_R5: dw 0
 
 Tab10: daw 1000, 100, 10
 Tab10_vel: dw 10
