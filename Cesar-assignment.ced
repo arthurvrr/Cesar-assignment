@@ -397,27 +397,46 @@ loop_timer:
 	
 	MOV, #BOTS_POSITIONS_X, R1	;R1 contem o endereço de BOTS_POS_X
 	ADD, R5, R1			;Muda o ponteiro para BOTS_POS_X
+	MOV, #BOTS_VEL_X, R2		;R2 contem o endereco de BOTS_VEL_X
+	ADD, R5, R2			;Muda o ponteiro para BOTS_VEL_X
+	ADD, (R2), (R1)			;BOTS_POS_X = BOTS_POX_X + BOTS_VEL_X
 
-	MOV, #BOTS_POSITIONS_Y, R2	;R2 contem o endereco de BOTS_POS_Y
-	ADD, R5, R2			;Muda o ponteiro para BOTS_POS_Y
-
-	MOV, #BOTS_VEL_X, R3		;R3 contem o endereco de BOTS_VEL_X
-	ADD, R5, R3			;Muda o ponteiro para BOTS_VEL_X
+	CMP, (R1), #9999		;Verifica se a posicao é maior que 9999	
+	BGT, reset_robot
 	
-	MOV, #BOTS_VEL_Y, R4		;R4 contem o endereco de BOTS_VEL_Y
-	ADD, R5, R4			;Muda o ponteiro para BOTS_VEL_Y
+	CMP, (R1), #-9999		;Verifica se a posicao é menor que -9999
+	BLT, reset_robot		
+	
+	JMP, pos_y_timer
 
-	ADD, (R3),(R1)		;Soma R3 (VEL_X[n]) ao conteudo contido no endereço R1 (POS_X[N])
-	ADD, (R4),(R2)		;Soma R4 (VEL_Y[n]) ao conteudo contido no endereço R2 (POS_Y[N])
+reset_robot:
+	MOV, R5, R1                 ; Copia o deslocamento em bytes (0,2,4 ou 6) para R1
+	ASR, R1                     ; Divide por 2 para obter o índice 0-based (0,1,2 ou 3)
+	JSR, R7, clean_data         ; Chama clean_data com o índice correto em R1
+	JMP, go_timer               ; APÓS LIMPAR, pula para o próximo robô
+	
+pos_y_timer:
+	MOV, #BOTS_POSITIONS_Y, R1	;R1 contem o endereco de BOTS_POS_Y
+	ADD, R5, R1			;Muda o ponteiro para BOTS_POS_Y
+	MOV, #BOTS_VEL_Y, R2		;R1 contem o endereco de BOTS_VEL_Y
+	ADD, R5, R2			;Muda o ponteiro para BOTS_VEL_Y
+	ADD, (R2), (R1)			;BOTS_POS_Y = BOTS_POX_Y + BOTS_VEL_Y
+
+	CMP, (R1), #9999		;Verifica se a posicao é maior que 9999	
+	BGT, reset_robot
+	
+	CMP, (R1), #-9999		;Verifica se a posicao é menor que -9999
+	BLT, reset_robot		
 
 go_timer:
 	ADD, #2 , R5		;Incrementa o ponteiro
 	JMP, loop_timer
-		
+
 out_timer:
 	CLR, R5
 	CLR, TIMER_COUNT
 	RTS,R7
+	
 
 ;==================================================
 ;JSR_N: TRATA A INTERRUPCAO ATIVADA PELA TECLA "N" OU "n"
